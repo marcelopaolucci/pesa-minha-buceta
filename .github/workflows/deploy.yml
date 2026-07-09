@@ -6,6 +6,12 @@ on:
       - main
       - staging
 
+# Prod e staging compartilham o mesmo venv na VPS — deploys concorrentes
+# corrompem o pip install. Serializa: um deploy por vez, sem cancelar o que roda.
+concurrency:
+  group: deploy-vps
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
