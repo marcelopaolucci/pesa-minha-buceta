@@ -1,0 +1,14 @@
+bot.db
+backups/
+bot.db-wal
+bot.db-shm
+bot.db.original_staging
+.env
+__pycache__/
+*.pyc
+*.pyo
+bot.log
+*.log
+.DS_Store
+venv/
+.vscode/

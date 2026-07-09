@@ -1,0 +1,43 @@
+name: Deploy Bot
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Staging
+        if: github.ref == 'refs/heads/staging'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_SSH_HOST }}
+          username: ${{ secrets.STAGING_SSH_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/pmbb/staging
+            git pull origin staging
+            pip install -r requirements.txt --upgrade --quiet
+            sudo systemctl restart pmbb-staging.service
+            sleep 2
+            systemctl is-active pmbb-staging.service
+
+      - name: Deploy to Production
+        if: github.ref == 'refs/heads/main'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_SSH_HOST }}
+          username: ${{ secrets.PRODUCTION_SSH_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/pmbb/prod
+            git pull origin main
+            pip install -r requirements.txt --upgrade --quiet
+            sudo systemctl restart pmbb.service
+            sleep 2
+            systemctl is-active pmbb.service
