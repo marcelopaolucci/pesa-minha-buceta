@@ -21,7 +21,7 @@ jobs:
             set -e
             cd /opt/pmbb/staging
             git pull origin staging
-            pip install -r requirements.txt --upgrade --quiet
+            /opt/pmbb/venv/bin/pip install -r requirements.txt --upgrade --quiet
             sudo systemctl restart pmbb-staging.service
             sleep 2
             systemctl is-active pmbb-staging.service
@@ -37,7 +37,7 @@ jobs:
             set -e
             cd /opt/pmbb/prod
             git pull origin main
-            pip install -r requirements.txt --upgrade --quiet
+            /opt/pmbb/venv/bin/pip install -r requirements.txt --upgrade --quiet
             sudo systemctl restart pmbb.service
             sleep 2
             systemctl is-active pmbb.service
