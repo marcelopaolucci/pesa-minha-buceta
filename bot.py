@@ -11,6 +11,7 @@ from aiogram.enums import ParseMode
 
 import config
 import database
+from compat.telegram_session import TelegramCompatibilitySession
 from handlers import (
     cmd_ajuda,
     cmd_start,
@@ -40,6 +41,14 @@ from handlers import (
 )
 from handlers.ranking import process_ranking_callback, process_combined_ranking_callback
 from middleware.activity import ActivityMiddleware
+
+
+def create_bot(token: str) -> Bot:
+    return Bot(
+        token=token,
+        session=TelegramCompatibilitySession(),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
 
 def setup_logging():
     log_level = logging.DEBUG if getattr(config, "ENV", "prod") == "dev" else logging.INFO
@@ -115,7 +124,7 @@ async def main():
     await database.init_db()
     
     logging.info("Instanciando Bot e Dispatcher 3.x...")
-    bot = Bot(token=config.API_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    bot = create_bot(config.API_TOKEN)
 
     dp = Dispatcher()
     
