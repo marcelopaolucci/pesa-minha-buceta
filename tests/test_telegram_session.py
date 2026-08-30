@@ -75,6 +75,20 @@ def _supported_rich_message():
     }
 
 
+def _rich_message_with_buttons_block():
+    return {
+        "blocks": [
+            {
+                "type": "buttons",
+                "buttons": [
+                    {"text": "Perfil", "url": "https://example.com/perfil"},
+                    {"text": "Ranking", "url": "https://example.com/ranking"},
+                ],
+            }
+        ]
+    }
+
+
 def test_stock_session_rejects_rich_text_button():
     session = AiohttpSession()
     bot = Bot("123456:abcdefghijklmnopqrstuvwxyzABCDEFG")
@@ -110,6 +124,22 @@ def test_get_updates_downgrades_only_nested_rich_text_button():
         "botão",
         " nas mensagens agr",
     ]
+
+
+def test_get_updates_downgrades_rich_text_buttons_block():
+    session = _load_compatibility_session()()
+    bot = Bot("123456:abcdefghijklmnopqrstuvwxyzABCDEFG")
+    payload = _get_updates_payload(_rich_message_with_buttons_block())
+
+    response = session.check_response(
+        bot=bot,
+        method=GetUpdates(),
+        status_code=200,
+        content=json.dumps(payload),
+    )
+
+    block = response.result[0].message.reply_to_message.rich_message.blocks[0]
+    assert block.model_dump(exclude_none=True)["text"] == ["Perfil Ranking"]
 
 
 def test_get_updates_preserves_supported_rich_message():
@@ -178,6 +208,66 @@ def test_get_updates_keeps_client_decode_error_for_malformed_json():
             method=GetUpdates(),
             status_code=200,
             content="{malformed",
+        )
+
+
+def test_get_updates_exits_after_three_consecutive_decode_errors(monkeypatch):
+    session = _load_compatibility_session()()
+    bot = Bot("123456:abcdefghijklmnopqrstuvwxyzABCDEFG")
+
+    def always_fail(*args, **kwargs):
+        raise ClientDecodeError("decode failed", ValueError("decode failed"), {})
+
+    monkeypatch.setattr(AiohttpSession, "check_response", always_fail)
+
+    with pytest.raises(SystemExit, match="3 consecutive getUpdates decode errors"):
+        for attempt in range(3):
+            if attempt < 2:
+                with pytest.raises(ClientDecodeError):
+                    session.check_response(
+                        bot=bot,
+                        method=GetUpdates(),
+                        status_code=200,
+                        content="{}",
+                    )
+                continue
+            session.check_response(
+                bot=bot,
+                method=GetUpdates(),
+                status_code=200,
+                content="{}",
+            )
+
+
+def test_successful_get_updates_resets_decode_error_streak(monkeypatch):
+    session = _load_compatibility_session()()
+    bot = Bot("123456:abcdefghijklmnopqrstuvwxyzABCDEFG")
+    calls = 0
+
+    def fail_once_then_succeed(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls in (1, 2, 4):
+            raise ClientDecodeError("decode failed", ValueError("decode failed"), {})
+        return {"ok": True, "result": []}
+
+    monkeypatch.setattr(AiohttpSession, "check_response", fail_once_then_succeed)
+
+    for attempt in range(4):
+        if attempt in (0, 1, 3):
+            with pytest.raises(ClientDecodeError):
+                session.check_response(
+                    bot=bot,
+                    method=GetUpdates(),
+                    status_code=200,
+                    content="{}",
+                )
+            continue
+        session.check_response(
+            bot=bot,
+            method=GetUpdates(),
+            status_code=200,
+            content="{}",
         )
 
 
