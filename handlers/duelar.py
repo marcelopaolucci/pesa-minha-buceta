@@ -2,9 +2,11 @@ import time
 import logging
 import secrets
 import asyncio
+import math
 from aiogram import types
+from aiogram.filters import CommandObject
 from database import save_duel, get_duel, delete_duel, increment_stat, get_peso_legado, get_peso_legado_or_none, get_duel_cooldown, set_duel_cooldown, transfer_duel_weight
-from utils import format_weight, is_group_chat, format_name, strip_html
+from utils import format_weight, is_group_chat, format_name, strip_html, parse_weight_to_grams
 from utils.messages import Messages
 from utils.achievements_manager import check_achievements
 from utils.emojis import Emojis
@@ -18,8 +20,18 @@ STAKE = 2500.0
 _background_tasks: set = set()
 
 
-async def cmd_duelar(message: types.Message):
-    """/duelar — desafia o grupo a um duelo de peso (stake: 2.5kg legado, expira em 60s)."""
+def resolve_duel_stake(argument: str | None) -> float:
+    """Resolve o valor apostado; sem argumento mantém a aposta histórica."""
+    if not argument or not argument.strip():
+        return STAKE
+    stake = parse_weight_to_grams(argument)
+    if not math.isfinite(stake):
+        raise ValueError("duel stake must be finite")
+    return stake
+
+
+async def cmd_duelar(message: types.Message, command: CommandObject = None):
+    """/duelar [peso] — desafia o grupo; sem peso, aposta 2.5kg de legado."""
     if not await is_group_chat(message.chat):
         await message.reply(Messages.Errors.ONLY_GROUP, parse_mode='HTML')
         return
@@ -32,6 +44,14 @@ async def cmd_duelar(message: types.Message):
     user_name = message.from_user.first_name
     now = time.time()
 
+    try:
+        stake = resolve_duel_stake(command.args if command else None)
+    except (TypeError, ValueError):
+        await message.reply(Messages.Donate.INVALID_WEIGHT.splitlines()[0], parse_mode='HTML')
+        return
+
+    stake_display = format_weight(stake)
+
     last_duel = await get_duel_cooldown(user_id, chat_id)
     if last_duel and now - last_duel < DUEL_COOLDOWN:
         remaining = int(DUEL_COOLDOWN - (now - last_duel))
@@ -39,13 +59,13 @@ async def cmd_duelar(message: types.Message):
         return
 
     peso = await get_peso_legado(user_id, chat_id)
-    if peso < STAKE:
-        await message.reply(Messages.Errors.NOT_ENOUGH_WEIGHT.format(weight=Messages.Duel.STAKE_DISPLAY), parse_mode='HTML')
+    if peso < stake:
+        await message.reply(Messages.Errors.NOT_ENOUGH_WEIGHT.format(weight=stake_display), parse_mode='HTML')
         return
 
     msg_text = Messages.Duel.build_start_msg(
         challenger_name=format_name(user_name),
-        stake_display=Messages.Duel.STAKE_DISPLAY,
+        stake_display=stake_display,
         seconds=DUEL_EXPIRE_TIME
     )
 
@@ -56,7 +76,7 @@ async def cmd_duelar(message: types.Message):
         challenger_id=user_id,
         challenger_name=user_name,
         chat_id=chat_id,
-        stake=STAKE,
+        stake=stake,
         timestamp=int(now)
     )
     await set_duel_cooldown(user_id, chat_id, int(now))
@@ -95,6 +115,8 @@ async def callback_duelo(callback: types.CallbackQuery):
     challenger_id = duel["challenger_id"]
     challenger_name = duel["challenger_name"]
     chat_id = duel["chat_id"]
+    stake = duel["stake"]
+    stake_display = format_weight(stake)
     acceptor_id = callback.from_user.id
     acceptor_name = callback.from_user.first_name
 
@@ -128,12 +150,12 @@ async def callback_duelo(callback: types.CallbackQuery):
     if acceptor_weight is None:
         await callback.answer(strip_html(Messages.Errors.NOT_REGISTERED), show_alert=True)
         return
-    if acceptor_weight < STAKE:
-        await callback.answer(strip_html(Messages.Errors.NOT_ENOUGH_WEIGHT.format(weight=Messages.Duel.STAKE_DISPLAY)), show_alert=True)
+    if acceptor_weight < stake:
+        await callback.answer(strip_html(Messages.Errors.NOT_ENOUGH_WEIGHT.format(weight=stake_display)), show_alert=True)
         return
 
     challenger_weight = await get_peso_legado_or_none(challenger_id, chat_id)
-    if challenger_weight is None or challenger_weight < STAKE:
+    if challenger_weight is None or challenger_weight < stake:
         await delete_duel(target_msg_id)
         await callback.message.edit_text(Messages.Duel.CALLBACK_CREATOR_POOR, parse_mode='HTML', reply_markup=None)
         return
@@ -150,7 +172,7 @@ async def callback_duelo(callback: types.CallbackQuery):
         loser_id, loser_name = challenger_id, challenger_name
         winner_weight, loser_weight = acceptor_weight, challenger_weight
 
-    await transfer_duel_weight(winner_id, loser_id, chat_id, STAKE)
+    await transfer_duel_weight(winner_id, loser_id, chat_id, stake)
 
     await increment_stat(winner_id, chat_id, "duels_won")
     await increment_stat(loser_id, chat_id, "duels_lost")
@@ -170,7 +192,7 @@ async def callback_duelo(callback: types.CallbackQuery):
             acceptor_name=format_name(acceptor_name),
             winner_name=format_name(winner_name),
             loser_name=format_name(loser_name),
-            stake_display=Messages.Duel.STAKE_DISPLAY
+            stake_display=stake_display
         ),
         parse_mode="HTML",
         reply_markup=None
