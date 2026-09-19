@@ -6,14 +6,17 @@ Bot de gamificação para grupos do Telegram. Usuários fazem uma pesagem diári
 
 ## Números
 
-*(julho/2026, produção)*
+*(setembro/2026, produção)*
 
 | Métrica | Valor |
 |---|---|
-| Grupos ativos | 800+ |
-| Usuários registrados | 22.000+ |
-| Pesagens processadas | 150.000+ |
-| Stickiness (DAU/MAU) | ~27% |
+| Grupos alcançados | 1.200+ |
+| Usuários registrados | 31.600+ |
+| Pesagens processadas | 213.000+ |
+| Usuários ativos (30 dias) | 2.350+ |
+| Stickiness (DAU/MAU) | ~30% |
+
+Mais de 380 grupos tiveram atividade nos últimos 30 dias.
 
 Operação em uma única VPS com SQLite — custo de infraestrutura próximo de zero.
 
