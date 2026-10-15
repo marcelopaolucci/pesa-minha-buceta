@@ -1,4 +1,3 @@
-from datetime import datetime
 from aiogram import types
 from database import exec_pesar_transaction, get_user_meta, get_user_name, increment_stat, get_today_weight_change
 from utils import (format_weight, time_until_next_update, is_group_chat, roll_weighted_kg,
@@ -74,9 +73,8 @@ async def cmd_pesar(message: types.Message):
             parse_mode='HTML'
         )
 
-    promo_suffix = ""
-    if datetime(2026, 6, 1, 0, 0, 0) <= datetime.now() < datetime(2026, 7, 1, 0, 0, 0):
-        promo_suffix = '\n\n🎬 <a href="https://t.me/framegrambot">@framegrambot</a> — Adivinhe o filme ou série pelo frame. Um desafio por dia.'
+    # Divulgação do Desvelo; a prévia do link fica ligada de propósito.
+    promo_suffix = '\n\n🃏 <a href="https://t.me/DesveloCardBot">@DesveloCardBot</a> — Colecione cards. Abra packs, troque e complete álbuns.'
     await message.reply(
         pesar_text + promo_suffix,
         parse_mode='HTML',
