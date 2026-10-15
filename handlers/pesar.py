@@ -74,7 +74,7 @@ async def cmd_pesar(message: types.Message):
         )
 
     # Divulgação do Desvelo; a prévia do link fica ligada de propósito.
-    promo_suffix = '\n\n🃏 <a href="https://t.me/DesveloCardBot">@DesveloCardBot</a> — Colecione cards. Abra packs, troque e complete álbuns.'
+    promo_suffix = '\n\n<a href="https://t.me/DesveloCardBot">@DesveloCardBot</a>: Colecione cards. Abra packs, troque e complete álbuns'
     await message.reply(
         pesar_text + promo_suffix,
         parse_mode='HTML',
